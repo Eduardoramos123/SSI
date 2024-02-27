@@ -232,6 +232,6 @@ With the two security features on our attack is rendered mute. However, this onl
 ### Authored by:
     Eduardo Ramos, up201906732
     Leandro Silva, up202008061
-    ...
+    Luís Paiva, up202006094
 
 
