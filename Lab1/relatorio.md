@@ -181,7 +181,7 @@ old=$($CHECK_FILE)
 new=$($CHECK_FILE)
 while [ "$old" == "$new" ]
 do
-    .\link_script
+    ./link_script
     new=$($CHECK_FILE)
 done
 echo "STOP... passwd file has been changed"
@@ -208,7 +208,7 @@ int main()
 
     if(!access(fn, W_OK)){ 
         uid_t original_uid = geteuid();
-        seteuid(getuid());
+        seteuid(100);
         fp = fopen(fn, "a+"); 
         fwrite("\n", sizeof(char), 1, fp);
         fwrite(buffer, sizeof(char), strlen(buffer), fp);
@@ -218,7 +218,8 @@ int main()
     else printf("No permission \n");
 }
 ```
-We added the 3 lines: **uid_t original_uid = geteuid();** , **seteuid(getuid());** and **seteuid(original_uid);**. We use the seteuid to temporarly drop the root privileges when we open and write to the file. That way an user cannot abuse the race condition to write to a forbidden file like **/etc/passwd**. This way we are also upholding the **Principle of Least Privilege** as we revert to a lesser privilege whenever possible.
+We added three lines: **uid_t original_uid = geteuid()**, where we save the original UID; **seteuid(100)**, where we temporarily drop root privileges by choosing a UID different from 0 (root UID) when opening and writing to the file; and finally **seteuid(original_uid)**, which sets the original UID.
+This prevents a user from abusing the race condition to write to a forbidden file such as /etc/passwd. By doing this, we are also upholding the Principle of Least Privilege as we revert to a lesser privilege whenever possible.
 
 As we stated at the beginning, Ubuntu comes with some protections againts attacks like ours. We had to turn them off to make the attack work. But what are they actually doing? **fs.protected_symlinks**, when turned on, makes it impossible to link files with different **UIDS**. That means that we could not link up the **/etc/passwd** file to the **/tmp/XYZ** file as one is owned by seed and the other by root. This does reduce the scope of the attack by only allowing to affect files that are owned by the user, making the exploit not very useful. **fs.protected_regular** simularly dissalows writing to files when the UIDS do not match. We can turn them on again by executing the following:
 
