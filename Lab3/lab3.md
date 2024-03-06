@@ -39,6 +39,8 @@ If we remove the line defining the seed as the current time, the program uses th
 
 ![Creating an Encryption Key with default seed](imagens/imagem2.PNG)
 
+## Task 2: Guessing the Key
+
 So, what is the problem with this way of doing it this way? Let us say that Alice generated an **Encryption key** using the program above between the date of **2018-04-17 21:08:49** and **2018-04-17 23:08:49** and used it to encrypt some very important documents. As we saw before, the program above uses time as a seed to generate the **Encryption key**, so, as we know the timeframe of the generation we can execute the program and obtain the same seed as Alice! We can then obtain her **Encryption key** and decrypt all her important files! We will now attempt to get Alice's documents.
 Let us assume that the documents are in the **pdf** format. The document is encrypted using **AES**, which is a 128-bit cypher that uses blocks to encrypt and decrypt documents. A block consists of 16 bytes and so we will need 16 bytes of plaintext to decrypt it, so how do we get them?
 But first we need to get Alice's **Encryption Key**, and so we need to generate every possible key in that 2 hour period and test againts some plain text we can find in the **pdf** file. We are lucky as we can get 16 bytes of the header of the files.
@@ -63,7 +65,7 @@ void main()
 {
     int i;
     FILE* f1;
-    f1 = open("enckeys.txt", "a+");
+    f1 = fopen("enckeys.txt", "a+");
 
     for (i = 1524013729; i <= 1524020929; i++) {
         char key[KEYSIZE];
@@ -105,7 +107,7 @@ This python scrip imports the **AES** algorithm, gets all the keys from the **en
 
 So the Encryption Key is **95fa2030e73ed3f8da761b4eb805dfd7**! We found Alice's key and can now decrypt all her encrypted files.
 
-## Task 2: Measure the Entropy
+## Task 3: Measure the Entropy of Kernel
 
 It is difficult for computers to create randomness. So most Operating Systems get their randomness from the physical world. Linux gets the randomness from these physical resources:
 
@@ -136,7 +138,7 @@ The command checks the changes in the **/proc/sys/kernel/random/entropy_avail** 
 
 Through this expirement we can see how the system obtains a reliable source of entropy to generate resilient pseudo random numbers.
 
-## Task 3: Get Pseudo Random Numbers From /dev/random
+## Task 4: Get Pseudo Random Numbers From /dev/random
 
 Linux uses two devices to use the physical numbers collected by **/proc/sys/kernel/random/entropy_avail**. Those two being **/dev/random** and **/dev/urandom**. They behave diffently, as **/dev/random** blocks and does not generate any number when the **/proc/sys/kernel/random/entropy_avail** has 0 bytes of collected data. **/dev/random** will only resume operation when it finds that the physical data is enough for generating pseudo random numbers.
 We can see the behaviour of the **/dev/random/** by executing the command:
@@ -150,7 +152,7 @@ $ cat /dev/random | hexdump
 When we execute the watch on **cat /proc/sys/kernel/random/entropy_avail** and see the entropy increas, we also see that more lines are added to **/dev/random** until it goes to 0. When enough bytes are collected another entry is made on **/dev/random** and the entropy goes back to 0 again. We can see the blocking behaviour here, as entries are only made when there are enough bytes collected.
 **/dev/random** should be used in limited amounts because of this blocking behaviour. For example, if we use **/dev/random** in a server to generate random session keys we can cause a **DOS**. If the number of clients is greater than the number of lines in **/dev/random** has and can produce, the server will block waiting for the entropy and the clients are left waiting. This can then constitutes a **DOS**. A malicius attacker can also send many false client requests and can bring the server down to legitimate clients. 
 
-## Task 4: Get Pseudo Random Numbers From /dev/urandom
+## Task 5: Get Pseudo Random Numbers From /dev/urandom
 
 Linux also provides another device for pseudo random numbers and that is the **/dev/urandom**. The difference to **/dev/random** is that it will not block when the entropy in **/proc/sys/kernel/random/entropy_avail** is 0. **/dev/urandom** uses the data pooled to create a seed for its random number generation. 
 Let us see the behaviour of **/dev/urandom** by, once again, executing the following command:
