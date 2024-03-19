@@ -123,7 +123,7 @@ When we input the following URL in the browser we get the following:
 
 It worked! The **secret.txt** was accessed, but how did it work? What we did was take a legitimate MAC and calculated its padding. We then add the padding to the hash and simply add our new data in hashed form to the end of it, this way we create a legitimate MAC with our data without knowing the key! This happened because **SHA 256** does not hide the length of the original message making it possible to find the padding and attach custum data to the end of the hash.
 
-## Task 4: The Length Extension Attack
+## Task 4: Attack Mitigation using HMAC
 
 Now that we have done the attack, how can we protect the website from it?
 The answer is in using **HMAC**. Firstly we will modify the server's program and use python's **hmac** to implmente a more secure **verify_mac()**. We can implement the code by adding the following lines to **verify_mac()** in lab.py:
