@@ -1,7 +1,7 @@
 # Report 3: Hash Length Extension Attack Lab
 
 In this lab we will explore how we can compromise a Mac by expanding an intercepted message without knowing the key.
-For this we will first have to set up the lab environment. We first download the zip and build the **docker image**. Then we have to change the **/etc/hosts** file and add a new address to it, that being:
+To do this, we will first need to set up the lab environment. Firstly, we download the zip and build the **docker image**. Then we need to change the **/etc/hosts** file and add a new address to it, that being:
 
 ```sh
 10.9.0.80 www.seedlab-hashlen.com
@@ -38,7 +38,7 @@ Now, equiped with the 3 arguments, we can craft the completed URL.
 http://www.seedlab-hashlen.com/?myname=Eduardo&uid=1005&lstcmd=1&mac=ee73e3a3dfc4f7dd24bfa90a766efc79d6d9f1df31e7c2bb7c1c73404c669d3f
 ```
 
-When we sen it using the browser we obtain the following:
+When we seen it using the browser we obtain the following:
 
 ![The resulting web page when using the url](images/image3.PNG)
 
@@ -47,8 +47,8 @@ The image shoes that our **MAC** is valid and shows us the two files in the dire
 ## Task 2: Create Padding
 
 Now that we know how the website works, it is time to try to attack it! To do that we must first understand how padding is calculated for a one-way hash.
-The block size of **SHA 256**is 64 bytes, so a message will be padded in blocks of 64 bytes during the hash calculation. The padding consists of one byte of **\x80** folowed by many 0s and finally an **8 byte** length field with the length of the message hashed.
-So, our message: **xciujk:myname=Eduardo&uid=1005&lstcmd=1**, consists of **39 bytes**. So the length of our padding will be **64-39= 25 bytes**. The length of our message will be **39*8=312 bytes**. **312 bytes** in hex is **\x01\x38**. So our Padding wil be:
+The block size of **SHA 256**is 64 bytes, so a message will be padded in blocks of 64 bytes during the hash calculation. The padding consists of one byte of **\x80** followed by many 0s and finally an **8 byte** length field with the length of the hashed message.
+So, our message: **xciujk:myname=Eduardo&uid=1005&lstcmd=1**, consists of **39 bytes**. So the length of our padding will be **64-39= 25 bytes**. The length of our message will be **39*8=312 bits**. **312  bits** in hex is **\x01\x38**. So our padding will be:
 
 ```c
 "\x80"
@@ -60,8 +60,8 @@ With that done we can begin with the next task.
 
 ## Task 3: The Length Extension Attack
 
-We can finally start the attack! For this we will need 2 things: a MAC for a valid request and the size of the MAC key. 
-In **Task 1** we calculated the MAC for the message: **xciujk:myname=Eduardo&uid=1005&lstcmd=1**, that being **ee73e3a3dfc4f7dd24bfa90a766efc79d6d9f1df31e7c2bb7c1c73404c669d3f**. We also know the size of the key **xciujk** that being **6**!
+Finally, we can start the attack! For this we will need 2 things: a MAC for a valid request and the size of the MAC key. 
+In **Task 1** we calculated the MAC for the message: **xciujk:myname=Eduardo&uid=1005&lstcmd=1**, that being **ee73e3a3dfc4f7dd24bfa90a766efc79d6d9f1df31e7c2bb7c1c73404c669d3f**. We also know the size of the key **xciujk** which is **6**!
 With this we can add a **new message** to the end of the padding and create a valid MAC without knowing the key!
 For that we will use a program called **length_ext.c** that can create a new valid **MAC** with our custom message added at the end!
 The program is written bellow:
@@ -121,12 +121,12 @@ When we input the following URL in the browser we get the following:
 
 ![Our URL was successful in attacking the website](images/image5.PNG)
 
-It worked! The **secret.txt** was accessed, but how did it work? What we did was take a legitimate MAC and calculated its padding. We then add the padding to the hash and simply add our new data in hashed form to the end of it, this way we create a legitimate MAC with our data without knowing the key! This happened because **SHA 256** does not hide the length of the original message making it possible to find the padding and attach custum data to the end of the hash.
+It worked! The **secret.txt** was accessed, but how did it work? What we did was take a legitimate MAC and calculated its padding. We then add the padding to the hash and simply add our new data in hashed form to the end of it, this way we create a legitimate MAC with our data without knowing the key! This happened because **SHA 256** does not hide the length of the original message making it possible to find the padding and attach custom data to the end of the hash.
 
 ## Task 4: Attack Mitigation using HMAC
 
 Now that we have done the attack, how can we protect the website from it?
-The answer is in using **HMAC**. Firstly we will modify the server's program and use python's **hmac** to implmente a more secure **verify_mac()**. We can implement the code by adding the following lines to **verify_mac()** in lab.py:
+The answer is in using **HMAC**. Firstly we will modify the server's program and use python's **hmac** to implemente a more secure **verify_mac()**. We can implement the code by adding the following lines to **verify_mac()** in lab.py:
 
 ```py
 real_mac = hmac.new(bytearray(key.encode(´'utf-8')),
