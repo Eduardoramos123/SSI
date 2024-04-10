@@ -29,8 +29,22 @@ public class MainServer {
         private_key = keyPair.getPrivate();
         public_key = keyPair.getPublic();
 
+        String test = "test";
+        String sym = "DWlTAyiwAht/wgJwfTL4CjWBkj7cOGPdd0dRk+q/lo4=";
+        String test_enc = cryptoManager.encryptMessage(test, sym);
+        String test_dec = cryptoManager.decryptMessage(test_enc, sym);
+
+        System.out.println("Test String: " + test);
+        System.out.println("Symetric Key: " + sym);
+        System.out.println("Encrypted Test String: " + test_enc);
+        System.out.println("Decrypted Test String: " + test_dec);
+
+        database.deleteUser("edu");
+
 
         System.out.println("Symetric Key:" + cryptoManager.generateSymmetricKey());
+
+        database.addUser("edu", "DWlTAyiwAht/wgJwfTL4CjWBkj7cOGPdd0dRk+q/lo4=");
 
         serverSocket = new ServerSocket(port);
     }
@@ -146,11 +160,10 @@ public class MainServer {
             }
 
             if (dec_msg.contains("op1")) {
-                String[] op_elements = dec_msg.split("-");
+                String[] op_elements = dec_msg.split(":");
                 Integer res = (int) Math.sqrt(Integer.valueOf(op_elements[1]));
-                String msg_to_send = "op1:" + ":" + res;
+                String msg_to_send = "op1" + ":" + res;
                 String final_msg = cryptoManager.encryptMessage(msg_to_send, symkey);
-                database.startSession(elements[1], symkey);
                 out.println(final_msg);
                 return true;
             }
@@ -166,23 +179,54 @@ public class MainServer {
                 while (true) {
                     String msg = in.readLine();
                     String[] elements = msg.split(":");
+                    System.out.println(msg);
 
                     if (elements[0].equals("firstlogin")) {
-                        
+                        if (!firstlogin(elements)) {
+                            out.println("Forbidden!");
+                        }
+                        else {
+                            String symkey = database.getSymetricKey(elements[1]);
+                            String ok = cryptoManager.decryptMessage(in.readLine(), symkey);
+                            if (ok.equals("ok")) {
+                                //database.endSession(elements[1]);
+                                continue;
+                            }
+                        }
+                    }
+                    else if (elements[0].equals("login")) {
+                        if (!login(elements)) {
+                            out.println("Forbidden!");
+                        }
+                        else {
+                            String symkey = database.getSymetricKey(elements[1]);
+                            String ok = cryptoManager.decryptMessage(in.readLine(), symkey);
+                            if (ok.equals("ok")) {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (elements[0].equals("op1")) {
+                        if (!op1(elements)) {
+                            out.println("Forbidden!");
+                        }
+                        else {
+                            String symkey = database.getSymetricKey(elements[1]);
+                            String ok = cryptoManager.decryptMessage(in.readLine(), symkey);
+                            if (ok.equals("ok")) {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (elements[0].equals("logout")) {
+                        if (!logout(elements)) {
+                            out.println("Forbidden!");
+                        }
+                        else {
+                            break;
+                        }
                     }
 
-
-                }
-
-
-
-
-
-
-                if ("hello server".equals(greeting)) {
-                    out.println("hello client");
-                } else {
-                    out.println("unrecognized greeting");
                 }
 
                 // Close resources
@@ -191,12 +235,16 @@ public class MainServer {
                 clientSocket.close();
             } catch (IOException e) {
                 e.printStackTrace();
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
     }
 
     public static void main(String[] args) {
-        int port = 4523;
+        int port = 4422;
         try {
             MainServer server = new MainServer(port);
             server.start();

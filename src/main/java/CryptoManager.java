@@ -1,6 +1,7 @@
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.*;
 import java.io.BufferedReader;
@@ -42,7 +43,7 @@ public class CryptoManager {
             SecretKey symmetricKey = new SecretKeySpec(keyBytes, 0, keyBytes.length, "AES");
 
             // Create Cipher instance for AES in CBC mode with PKCS5Padding
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            Cipher cipher = Cipher.getInstance("AES");
             cipher.init(Cipher.ENCRYPT_MODE, symmetricKey);
 
             // Encrypt the message
@@ -67,7 +68,7 @@ public class CryptoManager {
             SecretKey symmetricKey = new SecretKeySpec(keyBytes, 0, keyBytes.length, "AES");
 
             // Create Cipher instance for AES in CBC mode with PKCS5Padding
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            Cipher cipher = Cipher.getInstance("AES");
             cipher.init(Cipher.DECRYPT_MODE, symmetricKey);
 
             // Decrypt the message
