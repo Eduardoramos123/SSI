@@ -90,9 +90,20 @@ public class MainServer {
 
             if (dec_msg.equals("firstlogin")) {
                 KeyPair keyPair = cryptoManager.generateKeyPair();
-                String msg_to_send = "firstlogin:" + keyPair.getPublic() + ":" + keyPair.getPrivate() + ":" + public_key;
+
+                byte[] keypub = keyPair.getPublic().getEncoded();
+                String final_keypub = Base64.getEncoder().encodeToString(keypub);
+
+                byte[] keypriv = keyPair.getPrivate().getEncoded();
+                String final_keypriv = Base64.getEncoder().encodeToString(keypriv);
+
+                byte[] keypub_server = public_key.getEncoded();
+                String final_keypub_server = Base64.getEncoder().encodeToString(keypub_server);
+
+
+                String msg_to_send = "firstlogin:" + final_keypub + ":" + final_keypriv + ":" + final_keypub_server;
                 String final_msg = cryptoManager.encryptMessage(msg_to_send, symkey);
-                database.registerUser(elements[1], String.valueOf(keyPair.getPublic()));
+                database.registerUser(elements[1], final_keypub);
                 database.changeFirstTime(elements[1]);
                 database.changePrivilege(elements[1], 1);
                 out.println(final_msg);
@@ -125,22 +136,22 @@ public class MainServer {
                 return false;
             }
 
-            String pubkey = database.getPlublicKey(elements[1]);
-            String dec_msg = Arrays.toString(cryptoManager.decryptMessage(elements[2].getBytes(), private_key));
+            byte[] pubkey = Base64.getDecoder().decode(database.getPublicKey(elements[1]));
+            String dec_msg = cryptoManager.decryptMessage(elements[2], private_key);
 
             if (dec_msg.equals("login")) {
                 String symkey = cryptoManager.generateSymmetricKey();
-                String msg_to_send = "login:" + ":" + symkey;
-                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(pubkey.getBytes());
+                String msg_to_send = "login:" + symkey;
+                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(pubkey);
                 // Get a key factory instance for RSA
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                 // Generate the public key from the key specification
                 PublicKey final_publicKey = keyFactory.generatePublic(keySpec);
-                byte[] final_msg = cryptoManager.encryptMessage(msg_to_send.getBytes(), final_publicKey);
+                String final_msg = cryptoManager.encryptMessage(msg_to_send, final_publicKey);
 
                 database.startSession(elements[1], symkey);
 
-                out.println(Arrays.toString(final_msg));
+                out.println(final_msg);
                 return true;
             }
             return false;

@@ -1,7 +1,11 @@
 import java.io.*;
 import java.net.Socket;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Scanner;
 
 public class ClientSide {
@@ -25,8 +29,9 @@ public class ClientSide {
         out = new PrintWriter(clientSocket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         logged = false;
-        keyfile = "keyfile.txt";
+        keyfile = "src/main/java/keyfile.txt";
         File file = new File(keyfile);
+        System.out.println("Size: " + file.length());
         if (file.length() == 0) {
             firstTime = true;
         }
@@ -36,22 +41,48 @@ public class ClientSide {
     }
 
     // Save keys to file
-    public static void saveKeysToFile(String publicKey, String privateKey, String server_privatekey, String fileName) throws IOException {
-        try (ObjectOutputStream outputStream = new ObjectOutputStream(new FileOutputStream(fileName))) {
-            outputStream.writeObject(publicKey);
-            outputStream.writeObject(privateKey);
-            outputStream.writeObject(server_privatekey);
-        }
+    public static void saveKeysToFile(String publicKey, String privateKey, String server_publickey, String fileName) throws IOException {
+        FileWriter fileWriter = new FileWriter(fileName);
+        PrintWriter printWriter = new PrintWriter(fileWriter);
+
+        printWriter.println(publicKey);
+        printWriter.println(privateKey);
+        printWriter.println(server_publickey);
+        printWriter.close();
     }
 
     // Load keys from file
-    public static KeyPair loadKeysFromFile(String fileName) throws IOException, ClassNotFoundException {
-        try (ObjectInputStream inputStream = new ObjectInputStream(new FileInputStream(fileName))) {
-            PublicKey publicKey = (PublicKey) inputStream.readObject();
-            PrivateKey privateKey = (PrivateKey) inputStream.readObject();
-            server_publickey = (PublicKey) inputStream.readObject();
-            return new KeyPair(publicKey, privateKey);
-        }
+    public static KeyPair loadKeysFromFile(String fileName) throws IOException, ClassNotFoundException, NoSuchAlgorithmException, InvalidKeySpecException {
+        File myObj = new File(fileName);
+        Scanner myReader = new Scanner(myObj);
+        String data = myReader.nextLine();
+        byte[] keyBytes = Base64.getDecoder().decode(data);
+        // Create a key specification object from the decoded bytes
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+        // Get a key factory instance for RSA
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        // Generate the public key from the key specification
+        publickey = keyFactory.generatePublic(keySpec);
+
+        data = myReader.nextLine();
+        byte[] keyBytes2 = Base64.getDecoder().decode(data);
+        // Create a key specification object from the decoded bytes
+        PKCS8EncodedKeySpec keySpec2 = new PKCS8EncodedKeySpec(keyBytes2);
+        // Get a key factory instance for RSA
+        KeyFactory keyFactory2 = KeyFactory.getInstance("RSA");
+        // Generate the public key from the key specification
+        privatekey = keyFactory2.generatePrivate(keySpec2);
+
+        data = myReader.nextLine();
+        byte[] keyBytes3 = Base64.getDecoder().decode(data);
+        // Create a key specification object from the decoded bytes
+        X509EncodedKeySpec keySpec3 = new X509EncodedKeySpec(keyBytes3);
+        // Get a key factory instance for RSA
+        KeyFactory keyFactory3 = KeyFactory.getInstance("RSA");
+        // Generate the public key from the key specification
+        server_publickey = keyFactory3.generatePublic(keySpec3);
+
+        return new KeyPair((PublicKey) publickey, (PrivateKey) privatekey);
     }
 
     private static void displayMenu1() {
@@ -120,14 +151,16 @@ public class ClientSide {
         KeyPair keys = loadKeysFromFile(keyfile);
 
         String enc = "login";
-        String enc_msg = Arrays.toString(cryptoManager.encryptMessage(enc.getBytes(), (PublicKey) server_publickey));
+        String enc_msg = cryptoManager.encryptMessage(enc, (PublicKey) server_publickey);
         String final_msg = "login:" + username + ":" + enc_msg;
 
         out.println(final_msg);
 
         String server_msg = in.readLine();
 
-        String final_server_msg = Arrays.toString(cryptoManager.decryptMessage(server_msg.getBytes(), (PrivateKey) keys.getPrivate()));
+        String final_server_msg = cryptoManager.decryptMessage(server_msg, (PrivateKey) keys.getPrivate());
+
+        System.out.println("Msg received: " + final_server_msg);
 
         String[] elements = final_server_msg.split(":");
 

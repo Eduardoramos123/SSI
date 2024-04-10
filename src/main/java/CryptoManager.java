@@ -3,6 +3,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -84,16 +85,16 @@ public class CryptoManager {
         return "";
     }
 
-    public static byte[] encryptMessage(byte[] message, PublicKey publicKey) throws Exception {
+    public static String encryptMessage(String message, PublicKey publicKey) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
-        return cipher.doFinal(message);
+        return Base64.getEncoder().encodeToString(cipher.doFinal(message.getBytes(StandardCharsets.UTF_8)));
     }
 
-    public static byte[] decryptMessage(byte[] encryptedMessage, PrivateKey privateKey) throws Exception {
+    public static String decryptMessage(String encryptedMessage, PrivateKey privateKey) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.DECRYPT_MODE, privateKey);
-        return cipher.doFinal(encryptedMessage);
+        return new String(cipher.doFinal(Base64.getDecoder().decode(encryptedMessage)), StandardCharsets.UTF_8);
     }
 
     public static KeyPair generateKeyPair() throws NoSuchAlgorithmException {

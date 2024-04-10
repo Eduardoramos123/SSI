@@ -33,7 +33,7 @@ public class DatabaseManager {
         return symetricKey;
     }
 
-    public String getPlublicKey(String username) {
+    public String getPublicKey(String username) {
         String publicKey = null;
         try {
             String query = "SELECT PublicKey FROM User WHERE username = ?";
@@ -41,7 +41,7 @@ public class DatabaseManager {
                 preparedStatement.setString(1, username);
                 try (ResultSet resultSet = preparedStatement.executeQuery()) {
                     if (resultSet.next()) {
-                        publicKey = resultSet.getString("SymetricKey");
+                        publicKey = resultSet.getString("PublicKey");
                     }
                 }
             }
