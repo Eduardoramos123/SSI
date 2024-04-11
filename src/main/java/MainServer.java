@@ -28,24 +28,6 @@ public class MainServer {
         KeyPair keyPair = cryptoManager.generateKeyPair();
         private_key = keyPair.getPrivate();
         public_key = keyPair.getPublic();
-
-        String test = "test";
-        String sym = "DWlTAyiwAht/wgJwfTL4CjWBkj7cOGPdd0dRk+q/lo4=";
-        String test_enc = cryptoManager.encryptMessage(test, sym);
-        String test_dec = cryptoManager.decryptMessage(test_enc, sym);
-
-        System.out.println("Test String: " + test);
-        System.out.println("Symetric Key: " + sym);
-        System.out.println("Encrypted Test String: " + test_enc);
-        System.out.println("Decrypted Test String: " + test_dec);
-
-        database.deleteUser("edu");
-
-
-        System.out.println("Symetric Key:" + cryptoManager.generateSymmetricKey());
-
-        database.addUser("edu", "DWlTAyiwAht/wgJwfTL4CjWBkj7cOGPdd0dRk+q/lo4=");
-
         serverSocket = new ServerSocket(port);
     }
 
@@ -105,7 +87,7 @@ public class MainServer {
                 String final_msg = cryptoManager.encryptMessage(msg_to_send, symkey);
                 database.registerUser(elements[1], final_keypub);
                 database.changeFirstTime(elements[1]);
-                database.changePrivilege(elements[1], 1);
+                database.changePrivilege(elements[1], 3);
                 out.println(final_msg);
                 return true;
             }
@@ -181,6 +163,56 @@ public class MainServer {
             return false;
         }
 
+        public boolean op2(String[] elements) throws Exception {
+            if (database.isFirstTime(elements[1])) {
+                return false;
+            }
+
+            String symkey = database.getSymetricKey(elements[1]);
+            String dec_msg = cryptoManager.decryptMessage(elements[2], symkey);
+            Integer priv = database.getPrivilege(elements[1]);
+
+            if (priv < 2) {
+                return false;
+            }
+
+            if (dec_msg.contains("op2")) {
+                String[] op_elements = dec_msg.split(":");
+                Integer res = (int) Math.cbrt(Integer.valueOf(op_elements[1]));
+                System.out.println("RES: " + res);
+                String msg_to_send = "op2" + ":" + res;
+                String final_msg = cryptoManager.encryptMessage(msg_to_send, symkey);
+                out.println(final_msg);
+                return true;
+            }
+            return false;
+        }
+
+        public boolean op3(String[] elements) throws Exception {
+            if (database.isFirstTime(elements[1])) {
+                return false;
+            }
+
+            String symkey = database.getSymetricKey(elements[1]);
+            String dec_msg = cryptoManager.decryptMessage(elements[2], symkey);
+            Integer priv = database.getPrivilege(elements[1]);
+
+            if (priv < 3) {
+                return false;
+            }
+
+            if (dec_msg.contains("op3")) {
+                String[] op_elements = dec_msg.split(":");
+                double n = 1 / Integer.valueOf(op_elements[2]);
+                Integer res = (int) Math.pow(Integer.valueOf(op_elements[1]), n);
+                String msg_to_send = "op3" + ":" + res;
+                String final_msg = cryptoManager.encryptMessage(msg_to_send, symkey);
+                out.println(final_msg);
+                return true;
+            }
+            return false;
+        }
+
         @Override
         public void run() {
             try {
@@ -219,6 +251,30 @@ public class MainServer {
                     }
                     else if (elements[0].equals("op1")) {
                         if (!op1(elements)) {
+                            out.println("Forbidden!");
+                        }
+                        else {
+                            String symkey = database.getSymetricKey(elements[1]);
+                            String ok = cryptoManager.decryptMessage(in.readLine(), symkey);
+                            if (ok.equals("ok")) {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (elements[0].equals("op2")) {
+                        if (!op2(elements)) {
+                            out.println("Forbidden!");
+                        }
+                        else {
+                            String symkey = database.getSymetricKey(elements[1]);
+                            String ok = cryptoManager.decryptMessage(in.readLine(), symkey);
+                            if (ok.equals("ok")) {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (elements[0].equals("op3")) {
+                        if (!op3(elements)) {
                             out.println("Forbidden!");
                         }
                         else {

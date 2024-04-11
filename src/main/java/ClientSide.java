@@ -102,7 +102,9 @@ public class ClientSide {
     private static void displayMenu3() {
         System.out.println("\n");
         System.out.println("1. op1");
-        System.out.println("2. Logout & Exit");
+        System.out.println("2. op2");
+        System.out.println("3. op3");
+        System.out.println("4. Logout & Exit");
         System.out.print("Enter your choice: ");
     }
 
@@ -115,7 +117,7 @@ public class ClientSide {
         //scanner.nextLine();
         //symkey = scanner.nextLine();
 
-        symkey = "DWlTAyiwAht/wgJwfTL4CjWBkj7cOGPdd0dRk+q/lo4=";
+        symkey = "a6OhfAp3keMWMDW2tVYfEsB5izaV37WYZhaa7WqOYiw=";
         String enc = "firstlogin";
         String enc_msg = cryptoManager.encryptMessage(enc, symkey);
         String final_msg = "firstlogin:" + username + ":" + enc_msg;
@@ -187,6 +189,9 @@ public class ClientSide {
 
         String server_msg = in.readLine();
 
+        if (server_msg.contains("Forbidden")) {
+            return false;
+        }
 
         String final_server_msg = cryptoManager.decryptMessage(server_msg, symkey);
 
@@ -200,6 +205,66 @@ public class ClientSide {
         int res = Integer.parseInt(elements[1]);
 
         System.out.println("Result from square root of " + number + " = " + res);
+
+        out.println("ok");
+
+        return true;
+    }
+    private static boolean op2(int number) throws Exception {
+        String enc = "op2:" + number;
+        String enc_msg = cryptoManager.encryptMessage(enc, symkey);
+        String final_msg = "op2:" + username + ":" + enc_msg;
+
+        out.println(final_msg);
+
+        String server_msg = in.readLine();
+
+        if (server_msg.contains("Forbidden")) {
+            return false;
+        }
+
+        String final_server_msg = cryptoManager.decryptMessage(server_msg, symkey);
+
+        String[] elements = final_server_msg.split(":");
+
+
+        if (!elements[0].equals("op2")) {
+            return false;
+        }
+
+        int res = Integer.parseInt(elements[1]);
+
+        System.out.println("Result from cubic root of " + number + " = " + res);
+
+        out.println("ok");
+
+        return true;
+    }
+    private static boolean op3(int number1, int number2) throws Exception {
+        String enc = "op2:" + number1 + ":" + number2;
+        String enc_msg = cryptoManager.encryptMessage(enc, symkey);
+        String final_msg = "op2:" + username + ":" + enc_msg;
+
+        out.println(final_msg);
+
+        String server_msg = in.readLine();
+
+        if (server_msg.contains("Forbidden")) {
+            return false;
+        }
+
+        String final_server_msg = cryptoManager.decryptMessage(server_msg, symkey);
+
+        String[] elements = final_server_msg.split(":");
+
+
+        if (!elements[0].equals("op3")) {
+            return false;
+        }
+
+        int res = Integer.parseInt(elements[1]);
+
+        System.out.println("Result from" + number2 + " root of " + number1 + " = " + res);
 
         out.println("ok");
 
@@ -278,13 +343,13 @@ public class ClientSide {
                 displayMenu3();
                 int choice = getUserChoice();
 
-                if (choice == 2) {
+                if (choice == 4) {
                     if (!logout()) {
                         System.out.println("Something went wrong in logout");
                     }
                     break;
                 }
-                else {
+                else if (choice == 1) {
                     System.out.println("Operation 1 Selected!");
                     System.out.println("Please write a int: ");
                     int num = scanner.nextInt();
@@ -293,6 +358,32 @@ public class ClientSide {
                     }
                     else {
                         System.out.println("Something went wrong in op1");
+                        continue;
+                    }
+                }
+                else if (choice == 2) {
+                    System.out.println("Operation 2 Selected!");
+                    System.out.println("Please write a int: ");
+                    int num = scanner.nextInt();
+                    if(op2(num)) {
+                        continue;
+                    }
+                    else {
+                        System.out.println("Something went wrong in op2");
+                        continue;
+                    }
+                }
+                else if (choice == 3) {
+                    System.out.println("Operation 3 Selected!");
+                    System.out.println("Please write num1: ");
+                    int num1 = scanner.nextInt();
+                    System.out.println("Please write num2: ");
+                    int num2 = scanner.nextInt();
+                    if(op3(num1, num2)) {
+                        continue;
+                    }
+                    else {
+                        System.out.println("Something went wrong in op3");
                         continue;
                     }
                 }
