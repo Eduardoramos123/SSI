@@ -1,3 +1,5 @@
+import org.jasypt.util.text.BasicTextEncryptor;
+
 import java.io.*;
 import java.net.Socket;
 import java.security.*;
@@ -22,6 +24,8 @@ public class ClientSide {
     private static String symkey;
     private static CryptoManager cryptoManager = new CryptoManager();
     private static String username;
+    private static String password;
+    private static int seq_number;
 
     ClientSide(String serveradress, int port) throws IOException {
         this.scanner = new Scanner(System.in);
@@ -32,6 +36,7 @@ public class ClientSide {
         keyfile = "src/main/java/keyfile.txt";
         File file = new File(keyfile);
         System.out.println("Size: " + file.length());
+        seq_number = cryptoManager.generateRandomNumber();
         if (file.length() == 0) {
             firstTime = true;
         }
@@ -45,9 +50,17 @@ public class ClientSide {
         FileWriter fileWriter = new FileWriter(fileName);
         PrintWriter printWriter = new PrintWriter(fileWriter);
 
-        printWriter.println(publicKey);
-        printWriter.println(privateKey);
-        printWriter.println(server_publickey);
+        BasicTextEncryptor textEncryptor = new BasicTextEncryptor();
+        textEncryptor.setPassword(password);
+
+        printWriter.println(textEncryptor.encrypt(publicKey));
+        printWriter.println(textEncryptor.encrypt(privateKey));
+        printWriter.println(textEncryptor.encrypt(server_publickey));
+
+
+        //printWriter.println(publicKey);
+        //printWriter.println(privateKey);
+        //printWriter.println(server_publickey);
         printWriter.close();
     }
 
@@ -55,7 +68,13 @@ public class ClientSide {
     public static KeyPair loadKeysFromFile(String fileName) throws IOException, ClassNotFoundException, NoSuchAlgorithmException, InvalidKeySpecException {
         File myObj = new File(fileName);
         Scanner myReader = new Scanner(myObj);
-        String data = myReader.nextLine();
+        //String data = myReader.nextLine();
+
+        BasicTextEncryptor textEncryptor = new BasicTextEncryptor();
+        textEncryptor.setPassword(password);
+
+
+        String data = textEncryptor.decrypt(myReader.nextLine());
         byte[] keyBytes = Base64.getDecoder().decode(data);
         // Create a key specification object from the decoded bytes
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
@@ -64,7 +83,7 @@ public class ClientSide {
         // Generate the public key from the key specification
         publickey = keyFactory.generatePublic(keySpec);
 
-        data = myReader.nextLine();
+        data = textEncryptor.decrypt(myReader.nextLine());
         byte[] keyBytes2 = Base64.getDecoder().decode(data);
         // Create a key specification object from the decoded bytes
         PKCS8EncodedKeySpec keySpec2 = new PKCS8EncodedKeySpec(keyBytes2);
@@ -73,7 +92,7 @@ public class ClientSide {
         // Generate the public key from the key specification
         privatekey = keyFactory2.generatePrivate(keySpec2);
 
-        data = myReader.nextLine();
+        data = textEncryptor.decrypt(myReader.nextLine());
         byte[] keyBytes3 = Base64.getDecoder().decode(data);
         // Create a key specification object from the decoded bytes
         X509EncodedKeySpec keySpec3 = new X509EncodedKeySpec(keyBytes3);
@@ -115,12 +134,17 @@ public class ClientSide {
 
         System.out.println("Symetric Key: ");
         //scanner.nextLine();
-        //symkey = scanner.nextLine();
+        symkey = scanner.nextLine().trim();
 
-        symkey = "a6OhfAp3keMWMDW2tVYfEsB5izaV37WYZhaa7WqOYiw=";
+        System.out.println("Set Password: ");
+        //scanner.nextLine();
+        password = scanner.nextLine().trim();
+
+
         String enc = "firstlogin";
         String enc_msg = cryptoManager.encryptMessage(enc, symkey);
-        String final_msg = "firstlogin:" + username + ":" + enc_msg;
+        String seq_msg = cryptoManager.encryptMessage(String.valueOf(seq_number), symkey);
+        String final_msg = "firstlogin:" + username + ":" + enc_msg + ":" + seq_msg;
 
         System.out.println("Msg: " + final_msg);
 
@@ -149,12 +173,16 @@ public class ClientSide {
         System.out.println("Username: ");
         scanner.nextLine();
         username = scanner.nextLine();
+        System.out.println("Password: ");
+        //scanner.nextLine();
+        password = scanner.nextLine().trim();
 
         KeyPair keys = loadKeysFromFile(keyfile);
 
         String enc = "login";
         String enc_msg = cryptoManager.encryptMessage(enc, (PublicKey) server_publickey);
-        String final_msg = "login:" + username + ":" + enc_msg;
+        String seq_msg = cryptoManager.encryptMessage(String.valueOf(seq_number), (PublicKey) server_publickey);
+        String final_msg = "login:" + username + ":" + enc_msg + ":" + seq_msg;
 
         out.println(final_msg);
 
@@ -183,7 +211,9 @@ public class ClientSide {
     private static boolean op1(int number) throws Exception {
         String enc = "op1:" + number;
         String enc_msg = cryptoManager.encryptMessage(enc, symkey);
-        String final_msg = "op1:" + username + ":" + enc_msg;
+        String seq_msg = cryptoManager.encryptMessage(String.valueOf(seq_number), symkey);
+        String final_msg = "op1:" + username + ":" + enc_msg + ":" + seq_msg;
+        seq_number = seq_number + 1;
 
         out.println(final_msg);
 
@@ -196,6 +226,11 @@ public class ClientSide {
         String final_server_msg = cryptoManager.decryptMessage(server_msg, symkey);
 
         String[] elements = final_server_msg.split(":");
+
+        if (Integer.parseInt(elements[2]) != seq_number) {
+            return false;
+        }
+        seq_number = seq_number + 1;
 
 
         if (!elements[0].equals("op1")) {
@@ -213,7 +248,9 @@ public class ClientSide {
     private static boolean op2(int number) throws Exception {
         String enc = "op2:" + number;
         String enc_msg = cryptoManager.encryptMessage(enc, symkey);
-        String final_msg = "op2:" + username + ":" + enc_msg;
+        String seq_msg = cryptoManager.encryptMessage(String.valueOf(seq_number), symkey);
+        String final_msg = "op2:" + username + ":" + enc_msg + ":" + seq_msg;
+        seq_number = seq_number + 1;
 
         out.println(final_msg);
 
@@ -226,6 +263,11 @@ public class ClientSide {
         String final_server_msg = cryptoManager.decryptMessage(server_msg, symkey);
 
         String[] elements = final_server_msg.split(":");
+
+        if (Integer.parseInt(elements[2]) != seq_number) {
+            return false;
+        }
+        seq_number = seq_number + 1;
 
 
         if (!elements[0].equals("op2")) {
@@ -243,7 +285,9 @@ public class ClientSide {
     private static boolean op3(int number1, int number2) throws Exception {
         String enc = "op2:" + number1 + ":" + number2;
         String enc_msg = cryptoManager.encryptMessage(enc, symkey);
+        String seq_msg = cryptoManager.encryptMessage(String.valueOf(seq_number), symkey);
         String final_msg = "op2:" + username + ":" + enc_msg;
+        seq_number = seq_number + 1;
 
         out.println(final_msg);
 
@@ -256,6 +300,11 @@ public class ClientSide {
         String final_server_msg = cryptoManager.decryptMessage(server_msg, symkey);
 
         String[] elements = final_server_msg.split(":");
+
+        if (Integer.parseInt(elements[2]) != seq_number) {
+            return false;
+        }
+        seq_number = seq_number + 1;
 
 
         if (!elements[0].equals("op3")) {

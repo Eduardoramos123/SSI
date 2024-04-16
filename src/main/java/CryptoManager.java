@@ -2,12 +2,15 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.util.Base64;
 
 public class CryptoManager {
@@ -108,6 +111,10 @@ public class CryptoManager {
         return keyPairGenerator.generateKeyPair();
     }
 
-
+    public static int generateRandomNumber() {
+        SecureRandom secureRandom = new SecureRandom();
+        int randomNumber = secureRandom.nextInt(10_000_000) + 1;
+        return randomNumber;
+    }
 
 }
