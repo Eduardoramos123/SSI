@@ -45,7 +45,7 @@ public class MainServer {
                 System.out.println("New client connected: " + clientSocket);
 
                 // Start a new thread to handle each client
-                ClientHandler clientHandler = new ClientHandler(clientSocket, cryptoManager);
+                ClientHandler clientHandler = new ClientHandler(clientSocket, cryptoManager, clientSocket.getPort());
                 new Thread(clientHandler).start();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -59,11 +59,12 @@ public class MainServer {
         public CryptoManager cryptoManager;
         private PrintWriter out;
         private BufferedReader in;
+        private int port;
 
-        public ClientHandler(Socket socket, CryptoManager c) {
+        public ClientHandler(Socket socket, CryptoManager c, int port) {
             this.clientSocket = socket;
             cryptoManager = c;
-
+            this.port = port;
         }
 
         public boolean firstlogin(String[] elements) throws NoSuchAlgorithmException {
@@ -94,7 +95,7 @@ public class MainServer {
                 String final_msg = cryptoManager.encryptMessage(msg_to_send, symkey);
                 database.registerUser(elements[1], final_keypub);
                 database.changeFirstTime(elements[1]);
-                database.changePrivilege(elements[1], 3);
+                database.changePrivilege(elements[1], 1);
                 out.println(final_msg);
                 return true;
             }
@@ -236,9 +237,41 @@ public class MainServer {
 
             if (dec_msg.contains("op3")) {
                 String[] op_elements = dec_msg.split(":");
-                double n = 1 / Integer.valueOf(op_elements[2]);
-                Integer res = (int) Math.pow(Integer.valueOf(op_elements[1]), n);
+                float n = 1.0f / Integer.parseInt(op_elements[2]);
+                int res = (int) Math.pow(Integer.valueOf(op_elements[1]), n);
                 String msg_to_send = "op3" + ":" + res + ":" + user_seqnum.get(elements[1]);
+                user_seqnum.put(elements[1], user_seqnum.get(elements[1]) + 1);
+                String final_msg = cryptoManager.encryptMessage(msg_to_send, symkey);
+                out.println(final_msg);
+                return true;
+            }
+            return false;
+        }
+
+        public boolean getPubKey(String[] elements) throws Exception {
+            if (database.isFirstTime(elements[1])) {
+                return false;
+            }
+
+            String symkey = database.getSymetricKey(elements[1]);
+            String dec_msg = cryptoManager.decryptMessage(elements[2], symkey);
+            Integer priv = database.getPrivilege(elements[1]);
+            String seq_num = cryptoManager.decryptMessage(elements[3], symkey);
+
+            if (Integer.parseInt(seq_num) != user_seqnum.get(elements[1])) {
+                return false;
+            }
+
+            user_seqnum.put(elements[1], user_seqnum.get(elements[1]) + 1);
+
+            if (priv < 1) {
+                return false;
+            }
+
+            if (dec_msg.contains("getpubkey")) {
+                String[] op_elements = dec_msg.split(":");
+                System.out.println("TESTE:" + user_ports);
+                String msg_to_send = "getpubkey" + ":" + database.getPublicKey(op_elements[1]) + ":" + user_ports.get(op_elements[1]);
                 user_seqnum.put(elements[1], user_seqnum.get(elements[1]) + 1);
                 String final_msg = cryptoManager.encryptMessage(msg_to_send, symkey);
                 out.println(final_msg);
@@ -265,9 +298,9 @@ public class MainServer {
                         else {
                             String symkey = database.getSymetricKey(elements[1]);
                             String ok = cryptoManager.decryptMessage(in.readLine(), symkey);
+                            user_ports.put(elements[1], port);
                             if (ok.equals("ok")) {
                                 //database.endSession(elements[1]);
-                                user_ports.put(elements[1], clientSocket.getPort());
                                 continue;
                             }
                         }
@@ -279,8 +312,8 @@ public class MainServer {
                         else {
                             String symkey = database.getSymetricKey(elements[1]);
                             String ok = cryptoManager.decryptMessage(in.readLine(), symkey);
+                            user_ports.put(elements[1], port);
                             if (ok.equals("ok")) {
-                                user_ports.put(elements[1], clientSocket.getPort());
                                 continue;
                             }
                         }
@@ -311,6 +344,18 @@ public class MainServer {
                     }
                     else if (elements[0].equals("op3")) {
                         if (!op3(elements)) {
+                            out.println("Forbidden!");
+                        }
+                        else {
+                            String symkey = database.getSymetricKey(elements[1]);
+                            String ok = cryptoManager.decryptMessage(in.readLine(), symkey);
+                            if (ok.equals("ok")) {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (elements[0].equals("getpubkey")) {
+                        if (!getPubKey(elements)) {
                             out.println("Forbidden!");
                         }
                         else {

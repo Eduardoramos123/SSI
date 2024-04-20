@@ -1,6 +1,7 @@
 import org.jasypt.util.text.BasicTextEncryptor;
 
 import java.io.*;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -10,8 +11,10 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Scanner;
 
+import static java.lang.System.exit;
+
 public class ClientSide {
-    private Socket clientSocket;
+    private static Socket clientSocket;
     private static Scanner scanner;
     private static PrintWriter out;
     private static BufferedReader in;
@@ -26,6 +29,9 @@ public class ClientSide {
     private static String username;
     private static String password;
     private static int seq_number;
+    private static PublicKey collaborator_pubkey;
+    private static int collaborator_port;
+    private static String collaborator_username;
 
     ClientSide(String serveradress, int port) throws IOException {
         this.scanner = new Scanner(System.in);
@@ -33,7 +39,7 @@ public class ClientSide {
         out = new PrintWriter(clientSocket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         logged = false;
-        keyfile = "src/main/java/keyfile.txt";
+        keyfile = "src/main/java/keyfile2.txt";
         File file = new File(keyfile);
         System.out.println("Size: " + file.length());
         seq_number = cryptoManager.generateRandomNumber();
@@ -123,7 +129,8 @@ public class ClientSide {
         System.out.println("1. op1");
         System.out.println("2. op2");
         System.out.println("3. op3");
-        System.out.println("4. Logout & Exit");
+        System.out.println("4. send msg");
+        System.out.println("5. Logout & Exit");
         System.out.print("Enter your choice: ");
     }
 
@@ -283,10 +290,10 @@ public class ClientSide {
         return true;
     }
     private static boolean op3(int number1, int number2) throws Exception {
-        String enc = "op2:" + number1 + ":" + number2;
+        String enc = "op3:" + number1 + ":" + number2;
         String enc_msg = cryptoManager.encryptMessage(enc, symkey);
         String seq_msg = cryptoManager.encryptMessage(String.valueOf(seq_number), symkey);
-        String final_msg = "op2:" + username + ":" + enc_msg;
+        String final_msg = "op3:" + username + ":" + enc_msg + ":" + seq_msg;
         seq_number = seq_number + 1;
 
         out.println(final_msg);
@@ -313,7 +320,7 @@ public class ClientSide {
 
         int res = Integer.parseInt(elements[1]);
 
-        System.out.println("Result from" + number2 + " root of " + number1 + " = " + res);
+        System.out.println("Result from " + number2 + " root of " + number1 + " = " + res);
 
         out.println("ok");
 
@@ -343,6 +350,120 @@ public class ClientSide {
             return true;
         }
         return false;
+    }
+
+    private static boolean getPubKey(String colaborator) throws Exception {
+        String enc = "getpubkey:" + colaborator;
+        String enc_msg = cryptoManager.encryptMessage(enc, symkey);
+        String seq_msg = cryptoManager.encryptMessage(String.valueOf(seq_number), symkey);
+        String final_msg = "getpubkey:" + username + ":" + enc_msg + ":" + seq_msg;
+        seq_number = seq_number + 1;
+
+        out.println(final_msg);
+
+        String server_msg = in.readLine();
+
+
+        String final_server_msg = cryptoManager.decryptMessage(server_msg, symkey);
+
+        String[] elements = final_server_msg.split(":");
+
+
+        if (!elements[0].equals("getpubkey")) {
+            return false;
+        }
+
+        System.out.println("Public key: " + elements[1]);
+
+        byte[] keyBytes = Base64.getDecoder().decode(elements[1]);
+        // Create a key specification object from the decoded bytes
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+        // Get a key factory instance for RSA
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        // Generate the public key from the key specification
+        collaborator_pubkey = keyFactory.generatePublic(keySpec);
+        collaborator_port = Integer.parseInt(elements[2]);
+
+        out.println("ok");
+
+        return true;
+    }
+
+    private static boolean message(String msg, PrintWriter new_out, BufferedReader new_in) throws Exception {
+        String signed_msg = cryptoManager.signMessage(msg, (PrivateKey) privatekey);
+        String enc = "msg:" + username + ":" + msg;
+        String enc_msg = cryptoManager.encryptMessage(enc, collaborator_pubkey);
+        //String enc_sign = cryptoManager.encryptMessage(signed_msg, collaborator_pubkey);
+
+        //String seq_msg = cryptoManager.encryptMessage(String.valueOf(seq_number), collaborator_pubkey);
+        //seq_number = seq_number + 1;
+
+        new_out.println(enc_msg);
+        new_out.println(signed_msg);
+
+        String server_msg = new_in.readLine();
+
+
+        String final_server_msg = cryptoManager.decryptMessage(server_msg, (PrivateKey) privatekey);
+
+        String[] elements = final_server_msg.split(":");
+
+
+        if (!elements[0].equals("ok")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static boolean respond(String elements, PrintWriter new_out, BufferedReader new_in) throws Exception {
+        String dec_msg = cryptoManager.decryptMessage(elements, (PrivateKey) privatekey);
+
+        String[] msg_elements = dec_msg.split(":");
+
+        if (!msg_elements[0].equals("msg")) {
+            return false;
+        }
+
+        if (!getPubKey(msg_elements[1])) {
+            return false;
+        }
+
+        //String signed = cryptoManager.decryptMessage(new_in.readLine(), (PrivateKey) privatekey);
+        String signed = new_in.readLine();
+
+        if (!cryptoManager.verifySignature(msg_elements[2], signed, collaborator_pubkey)) {
+            return false;
+        }
+
+        System.out.println("MSG from " + msg_elements[1] + ": " + msg_elements[2]);
+
+        //TODO: add a different seq num
+        String ack = "ok:1234";
+        String enc_ack = cryptoManager.encryptMessage(ack, collaborator_pubkey);
+
+        new_out.println(enc_ack);
+
+        return false;
+    }
+
+    private static boolean sending_message(String col_username, String msg) throws Exception {
+        if (!getPubKey(col_username)) {
+            return false;
+        }
+
+        System.out.println("HERE1 " + collaborator_port);
+        Socket col_socket = new Socket("127.0.0.1", collaborator_port + 1);
+
+        PrintWriter sendng_out = new PrintWriter(col_socket.getOutputStream(), true);
+        BufferedReader sending_in = new BufferedReader(new InputStreamReader(col_socket.getInputStream()));
+
+
+        if (!message(msg, sendng_out, sending_in)) {
+            return false;
+        }
+
+        return true;
     }
 
 
@@ -392,7 +513,7 @@ public class ClientSide {
                 displayMenu3();
                 int choice = getUserChoice();
 
-                if (choice == 4) {
+                if (choice == 5) {
                     if (!logout()) {
                         System.out.println("Something went wrong in logout");
                     }
@@ -436,13 +557,86 @@ public class ClientSide {
                         continue;
                     }
                 }
+                else if (choice == 4) {
+                    System.out.println("Sending Message!");
+                    System.out.println("Please write user to send msg to: ");
+                    scanner.nextLine();
+                    String collaborator_user = scanner.nextLine();
+                    System.out.println("Please write msg to send: ");
+                    String msg = scanner.nextLine();
+                    System.out.println("FUCK ME");
+                    if(sending_message(collaborator_user, msg)) {
+                        continue;
+                    }
+                    else {
+                        System.out.println("Something went wrong in sending a message");
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
+    public static void listen_handler(PrintWriter new_out, BufferedReader new_in) throws Exception {
+        String msg_received = new_in.readLine();
+
+        respond(msg_received, new_out, new_in);
+    }
+
+    public static void listen() throws IOException {
+
+        //System.out.println("PORT: " + clientSocket.getLocalPort());
+        ServerSocket serverSocket = new ServerSocket(clientSocket.getLocalPort() + 1);
+
+
+
+        while (true) {
+            try {
+                // Accept incoming client connections
+                Socket listenSocket = serverSocket.accept();
+                System.out.println("Collaborator connected: " + listenSocket);
+
+                PrintWriter listen_out = new PrintWriter(listenSocket.getOutputStream(), true);
+                BufferedReader listen_in = new BufferedReader(new InputStreamReader(listenSocket.getInputStream()));
+
+
+                // Start a new thread to handle each client
+
+                Thread handlerThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            listen_handler(listen_out, listen_in);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+                handlerThread.start();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
 
     public static void main(String[] args) throws Exception {
         ClientSide client = new ClientSide("127.0.0.1", 4422);
+
+        Thread listenThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    listen();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        listenThread.start();
+
+
         client.start();
+        exit(0);
     }
 
 
