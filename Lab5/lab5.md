@@ -126,7 +126,7 @@ It worked! The **secret.txt** was accessed, but how did it work? What we did was
 ## Task 4: Attack Mitigation using HMAC
 
 Now that we have done the attack, how can we protect the website from it?
-The answer is in using **HMAC**. Firstly we will modify the server's program and use python's **hmac** to implemente a more secure **verify_mac()**. We can implement the code by adding the following lines to **verify_mac()** in lab.py:
+The answer is in using **HMAC**. Firstly we will modify the server's program and use python's **hmac** to implement a more secure **verify_mac()**. We can implement the code by adding the following lines to **verify_mac()** in lab.py:
 
 ```py
 real_mac = hmac.new(bytearray(key.encode(´'utf-8')),
