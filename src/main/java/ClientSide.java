@@ -24,6 +24,7 @@ public class ClientSide {
     private static Key privatekey;
     private static Key publickey;
     private static String keyfile;
+    private static String msgfile;
     private static String symkey;
     private static CryptoManager cryptoManager = new CryptoManager();
     private static String username;
@@ -40,6 +41,7 @@ public class ClientSide {
         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         logged = false;
         keyfile = "src/main/java/keyfile2.txt";
+        msgfile = "src/main/java/msgfile2.txt";
         File file = new File(keyfile);
         System.out.println("Size: " + file.length());
         seq_number = cryptoManager.generateRandomNumber();
@@ -108,6 +110,42 @@ public class ClientSide {
         server_publickey = keyFactory3.generatePublic(keySpec3);
 
         return new KeyPair((PublicKey) publickey, (PrivateKey) privatekey);
+    }
+
+    public static void saveMsgToFile(String msg, String signed, String user, String fileName) throws IOException {
+        FileWriter fileWriter = new FileWriter(fileName, true);
+        PrintWriter printWriter = new PrintWriter(fileWriter);
+
+        BasicTextEncryptor textEncryptor = new BasicTextEncryptor();
+        textEncryptor.setPassword(password);
+
+        printWriter.println(textEncryptor.encrypt(user));
+        printWriter.println(textEncryptor.encrypt(msg));
+        printWriter.println(textEncryptor.encrypt(signed));
+
+        printWriter.close();
+    }
+
+    public static void readMsgFromFile(String fileName) throws IOException {
+        BufferedReader reader = new BufferedReader(new FileReader(fileName));
+        String line;
+
+        BasicTextEncryptor textEncryptor = new BasicTextEncryptor();
+        textEncryptor.setPassword(password);
+
+        System.out.println("\n");
+        System.out.println("\n");
+        System.out.println("\n");
+        System.out.println("Message File:");
+
+        while ((line = reader.readLine()) != null) {
+            // Decrypt the line using the same password
+            String decryptedLine = textEncryptor.decrypt(line);
+            // Output the decrypted line
+            System.out.println(decryptedLine);
+        }
+
+        reader.close();
     }
 
     private static void displayMenu1() {
@@ -438,6 +476,8 @@ public class ClientSide {
 
         System.out.println("MSG from " + msg_elements[1] + ": " + msg_elements[2]);
 
+        saveMsgToFile(msg_elements[2], signed, msg_elements[1], msgfile);
+
         //TODO: add a different seq num
         String ack = "ok:1234";
         String enc_ack = cryptoManager.encryptMessage(ack, collaborator_pubkey);
@@ -564,7 +604,6 @@ public class ClientSide {
                     String collaborator_user = scanner.nextLine();
                     System.out.println("Please write msg to send: ");
                     String msg = scanner.nextLine();
-                    System.out.println("FUCK ME");
                     if(sending_message(collaborator_user, msg)) {
                         continue;
                     }
