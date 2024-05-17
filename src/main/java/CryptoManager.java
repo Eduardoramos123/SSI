@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
+import java.util.Arrays;
 import java.util.Base64;
 
 public class CryptoManager {
@@ -143,4 +144,39 @@ public class CryptoManager {
         return false;
     }
 
+    public static String generateOneTimeCode() {
+        final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        final int LENGTH = 12;
+        SecureRandom random = new SecureRandom();
+        StringBuilder sb = new StringBuilder(LENGTH);
+        for (int i = 0; i < LENGTH; i++) {
+            int index = random.nextInt(CHARACTERS.length());
+            sb.append(CHARACTERS.charAt(index));
+        }
+        return sb.toString();
+    }
+
+    public static String generateSymFromOneTimeCode(String code) {
+        try {
+            // Generate a secure random salt
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            byte[] keyB = sha256.digest(code.getBytes(StandardCharsets.UTF_8));
+
+            // Ensure the key is exactly 256 bits (32 bytes) long
+            keyB = Arrays.copyOf(keyB, 32);
+            // Generate the key bytes
+
+
+            // Create a SecretKeySpec for AES
+            SecretKeySpec secretKey = new SecretKeySpec(keyB, "AES");
+
+            // Encode the key in Base64
+            String symmetricKeyString = Base64.getEncoder().encodeToString(secretKey.getEncoded());
+
+            return symmetricKeyString;
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 }

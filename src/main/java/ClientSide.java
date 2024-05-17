@@ -40,8 +40,8 @@ public class ClientSide {
         out = new PrintWriter(clientSocket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         logged = false;
-        keyfile = "src/main/java/keyfile2.txt";
-        msgfile = "src/main/java/msgfile2.txt";
+        keyfile = "src/main/java/keyfile.txt";
+        msgfile = "src/main/java/msgfile.txt";
         File file = new File(keyfile);
         System.out.println("Size: " + file.length());
         seq_number = cryptoManager.generateRandomNumber();
@@ -177,9 +177,11 @@ public class ClientSide {
         scanner.nextLine();
         username = scanner.nextLine();
 
-        System.out.println("Symetric Key: ");
+        System.out.println("One Time Code: ");
         //scanner.nextLine();
-        symkey = scanner.nextLine().trim();
+        String code = scanner.nextLine().trim();
+        symkey = cryptoManager.generateSymFromOneTimeCode(code);
+
 
         System.out.println("Set Password: ");
         //scanner.nextLine();

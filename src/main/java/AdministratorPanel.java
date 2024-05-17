@@ -24,7 +24,9 @@ public class AdministratorPanel {
     }
 
     private static void addUser(String username) {
-        String sym = cryptoManager.generateSymmetricKey();
+        String oneTimeCode = cryptoManager.generateOneTimeCode();
+        String sym = cryptoManager.generateSymFromOneTimeCode(oneTimeCode);
+        System.out.println("One time code: " + oneTimeCode);
         System.out.println("Symetric Key: " + sym);
         database.addUser(username, sym);
     }
