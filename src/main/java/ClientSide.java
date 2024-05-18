@@ -31,6 +31,7 @@ public class ClientSide {
     private static PublicKey collaborator_pubkey;
     private static int collaborator_port;
     private static String collaborator_username;
+    private static String collaborator_pubkey_string;
     private static Dictionary<String, Integer> col_seq_nums = new Hashtable<>();
 
     ClientSide(String serveradress, int port) throws IOException {
@@ -121,11 +122,12 @@ public class ClientSide {
         printWriter.println(textEncryptor.encrypt(user));
         printWriter.println(textEncryptor.encrypt(msg));
         printWriter.println(textEncryptor.encrypt(signed));
+        printWriter.println(textEncryptor.encrypt(collaborator_pubkey_string));
 
         printWriter.close();
     }
 
-    public static void readMsgFromFile(String fileName) throws IOException {
+    public static void readMsgFromFile(String fileName) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
         String line;
 
@@ -139,9 +141,32 @@ public class ClientSide {
 
         while ((line = reader.readLine()) != null) {
             // Decrypt the line using the same password
-            String decryptedLine = textEncryptor.decrypt(line);
+            String user = textEncryptor.decrypt(line);
+            line = reader.readLine();
+            String msg = textEncryptor.decrypt(line);
+            line = reader.readLine();
+            String sig = textEncryptor.decrypt(line);
+            line = reader.readLine();
+            String pubkey = textEncryptor.decrypt(line);
+
+
+            byte[] keyBytes3 = Base64.getDecoder().decode(pubkey);
+            // Create a key specification object from the decoded bytes
+            X509EncodedKeySpec keySpec3 = new X509EncodedKeySpec(keyBytes3);
+            // Get a key factory instance for RSA
+            KeyFactory keyFactory3 = KeyFactory.getInstance("RSA");
+            // Generate the public key from the key specification
+            PublicKey sig_pubkey = keyFactory3.generatePublic(keySpec3);
+
+            if (!cryptoManager.verifySignature(msg, sig, sig_pubkey)) {
+                System.out.println("WARNING: Message Signed With Invalid Key!");
+                return;
+            }
+
+
             // Output the decrypted line
-            System.out.println(decryptedLine);
+            System.out.println(user + ": " + msg);
+            System.out.println("\n");
         }
 
         reader.close();
@@ -167,7 +192,8 @@ public class ClientSide {
         System.out.println("2. op2");
         System.out.println("3. op3");
         System.out.println("4. send msg");
-        System.out.println("5. Logout & Exit");
+        System.out.println("5. read all msg");
+        System.out.println("6. Logout & Exit");
         System.out.print("Enter your choice: ");
     }
 
@@ -413,6 +439,7 @@ public class ClientSide {
         }
 
         System.out.println("Public key: " + elements[1]);
+        collaborator_pubkey_string = elements[1];
 
         byte[] keyBytes = Base64.getDecoder().decode(elements[1]);
         // Create a key specification object from the decoded bytes
@@ -452,6 +479,8 @@ public class ClientSide {
             return false;
         }
 
+        col_seq_nums.put(collaborator_username, col_seq_nums.get(collaborator_username) + 2);
+
         return true;
     }
 
@@ -485,6 +514,7 @@ public class ClientSide {
 
         System.out.println("MSG from " + msg_elements[1] + ": " + msg_elements[2]);
 
+        collaborator_username = msg_elements[1];
 
 
         if (col_seq_nums.get(msg_elements[1]) == null) {
@@ -593,7 +623,7 @@ public class ClientSide {
                 displayMenu3();
                 int choice = getUserChoice();
 
-                if (choice == 5) {
+                if (choice == 6) {
                     if (!logout()) {
                         System.out.println("Something went wrong in logout");
                     }
@@ -651,6 +681,11 @@ public class ClientSide {
                         System.out.println("Something went wrong in sending a message");
                         continue;
                     }
+                }
+                else if (choice == 5) {
+                    System.out.println("Reading all Messages!");
+                    System.out.println("\n\n\n");
+                    readMsgFromFile(msgfile);
                 }
             }
         }
