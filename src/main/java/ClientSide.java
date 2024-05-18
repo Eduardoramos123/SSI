@@ -7,9 +7,7 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Scanner;
+import java.util.*;
 
 import static java.lang.System.exit;
 
@@ -33,6 +31,7 @@ public class ClientSide {
     private static PublicKey collaborator_pubkey;
     private static int collaborator_port;
     private static String collaborator_username;
+    private static Dictionary<String, Integer> col_seq_nums = new Hashtable<>();
 
     ClientSide(String serveradress, int port) throws IOException {
         this.scanner = new Scanner(System.in);
@@ -431,7 +430,7 @@ public class ClientSide {
 
     private static boolean message(String msg, PrintWriter new_out, BufferedReader new_in) throws Exception {
         String signed_msg = cryptoManager.signMessage(msg, (PrivateKey) privatekey);
-        String enc = "msg:" + username + ":" + msg;
+        String enc = "msg:" + username + ":" + msg + ":" + col_seq_nums.get(collaborator_username);
         String enc_msg = cryptoManager.encryptMessage(enc, collaborator_pubkey);
         //String enc_sign = cryptoManager.encryptMessage(signed_msg, collaborator_pubkey);
 
@@ -458,6 +457,7 @@ public class ClientSide {
 
     private static boolean respond(String elements, PrintWriter new_out, BufferedReader new_in) throws Exception {
         String dec_msg = cryptoManager.decryptMessage(elements, (PrivateKey) privatekey);
+        System.out.println("HERE1: " + dec_msg);
 
         String[] msg_elements = dec_msg.split(":");
 
@@ -465,9 +465,16 @@ public class ClientSide {
             return false;
         }
 
-        if (!getPubKey(msg_elements[1])) {
-            return false;
+        System.out.println("HERE: " + msg_elements[1]);
+
+        if (col_seq_nums.get(msg_elements[1]) == null) {
+            if (!getPubKey(msg_elements[1])) {
+                return false;
+            }
         }
+
+
+
 
         //String signed = cryptoManager.decryptMessage(new_in.readLine(), (PrivateKey) privatekey);
         String signed = new_in.readLine();
@@ -478,10 +485,26 @@ public class ClientSide {
 
         System.out.println("MSG from " + msg_elements[1] + ": " + msg_elements[2]);
 
+
+
+        if (col_seq_nums.get(msg_elements[1]) == null) {
+            col_seq_nums.put(msg_elements[1], Integer.parseInt(msg_elements[3]) + 1);
+        }
+        else {
+            if (col_seq_nums.get(msg_elements[1]) == Integer.parseInt(msg_elements[3])) {
+                col_seq_nums.put(msg_elements[1], Integer.parseInt(msg_elements[3]) + 1);
+            }
+            else {
+                System.out.println("Seq number stored: " + col_seq_nums.get(msg_elements[1]));
+                System.out.println("WARNING: Replay attack Detected!");
+                return false;
+            }
+        }
+
+
         saveMsgToFile(msg_elements[2], signed, msg_elements[1], msgfile);
 
-        //TODO: add a different seq num
-        String ack = "ok:1234";
+        String ack = "ok";
         String enc_ack = cryptoManager.encryptMessage(ack, collaborator_pubkey);
 
         new_out.println(enc_ack);
@@ -490,9 +513,24 @@ public class ClientSide {
     }
 
     private static boolean sending_message(String col_username, String msg) throws Exception {
-        if (!getPubKey(col_username)) {
-            return false;
+        System.out.println("argument: " + col_username);
+        System.out.println("global: " + collaborator_username);
+
+        if (col_username == null || !col_username.equals(collaborator_username)) {
+            if (!getPubKey(col_username)) {
+                return false;
+            }
         }
+
+        if (col_seq_nums.get(col_username) == null) {
+            col_seq_nums.put(col_username, cryptoManager.generateRandomNumber());
+        }
+        else {
+            col_seq_nums.put(col_username, col_seq_nums.get(col_username) + 1);
+        }
+
+        collaborator_username = col_username;
+
 
         System.out.println("HERE1 " + collaborator_port);
         Socket col_socket = new Socket("127.0.0.1", collaborator_port + 1);
